@@ -3,4 +3,4 @@ pandas
 matplotlib
 opencv-python-headless
 scipy
-re
+regex
