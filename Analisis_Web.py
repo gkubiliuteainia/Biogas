@@ -6,8 +6,11 @@ import pandas as pd
 from datetime import datetime
 import re
 
+st.sidebar.caption('BETA VERSION 2023')
 
-file_buffer = st.sidebar.file_uploader("Upload a file")
+file_buffer = st.sidebar.file_uploader("Upload a xlsx file")
+
+tab1, tab2, tab3 = st.tabs(["Automatic analysis", "Filter analysis", "Raw Excel"])
 
 if file_buffer is not None:
 
@@ -25,100 +28,148 @@ if file_buffer is not None:
         if max < int(numero):
             max = int(numero)
 
-    vector = np.arange(1, max+1)
+    
+    with tab1:
 
-    gasbag_analized = st.sidebar.selectbox('Gasbag to analyze',  vector)
+        vector = np.arange(1, max+1)
 
-    # Seleccionar columnas que contienen 'Gasbag' en el nombre
+        gasbag_automatic = st.selectbox('Gasbag to analyze automatic',  vector)
+
+        columnas_gasbag = df_xlsx_file.columns[df_xlsx_file.columns.str.contains('Gasbag ' + str(gasbag_automatic) + ' ')]
+        nombres_columnas = ['Tiempo'] + list(columnas_gasbag)
+
+        # Crea un nuevo DataFrame con las columnas seleccionadas
+        nuevo_df = df_xlsx_file[nombres_columnas]
+
+        # Asegurate de que la columna 'Tiempo' este en un formato de fecha y hora
+        nuevo_df['Tiempo'] = pd.to_datetime(nuevo_df['Tiempo'])
+
+        # Ordena el DataFrame por la columna 'Tiempo'
+        nuevo_df_ordenado = nuevo_df.sort_values(by='Tiempo')
+
+
+
+        # ------------------------------------------------------------------------------------------
+        # HALLAMOS LAS MEDIAS DE LOS SENSORES PARA TODOS LOS DIAS
+
+        # Agrupa por dia y calcula la media para cada grupo
+        df_agrupado = nuevo_df_ordenado.drop(columns=nuevo_df_ordenado.columns[nuevo_df_ordenado.columns.str.contains('gbag|gcount')])
+        df_agrupado = df_agrupado.groupby(df_agrupado['Tiempo'].dt.date).mean()
+        df_agrupado = df_agrupado.drop(columns=df_agrupado.columns[df_agrupado.columns.str.contains('Tiempo')])
+
+        # Ver el DataFrame resultante con las medias por dia
+        st.subheader('Average values')
+        st.write(df_agrupado)
+
+
+        # ------------------------------------------------------------------------------------------
+        # HALLAMOS TODOS LOS VALORES DE LAS 23:00
+
+        columna_gbag = nuevo_df_ordenado.columns[nuevo_df_ordenado.columns.str.contains('gbag')]
+        columna_gcount = nuevo_df_ordenado.columns[nuevo_df_ordenado.columns.str.contains('gcount')]
+
+        # Filtrar las filas donde la hora sea 23
+        df_filtrado_23h = nuevo_df_ordenado[nuevo_df_ordenado['Tiempo'].dt.hour == 23]
+        df_filtrado_23h = df_filtrado_23h[['Tiempo'] + list(columna_gbag) + list(columna_gcount)]
+
+        st.subheader('Data 23h')
+        st.write(df_filtrado_23h)
+
+    with tab2:
     
     
-    columnas_gasbag = df_xlsx_file.columns[df_xlsx_file.columns.str.contains('Gasbag ' + str(gasbag_analized) + ' ')]
-    nombres_columnas = ['Tiempo'] + list(columnas_gasbag)
+        vector = np.arange(1, max+1)
 
-    # Crea un nuevo DataFrame con las columnas seleccionadas
-    nuevo_df = df_xlsx_file[nombres_columnas]
+        col1, col2, col3, col4, col5 = st.columns(5)
 
-    # Asegúrate de que la columna 'Tiempo' esté en un formato de fecha y hora
-    nuevo_df['Tiempo'] = pd.to_datetime(nuevo_df['Tiempo'])
+        with col1:
+            gasbag_analized = st.selectbox('Gasbag to analyze',  vector)
 
-    # Ordena el DataFrame por la columna 'Tiempo'
-    nuevo_df_ordenado = nuevo_df.sort_values(by='Tiempo')
+        # Seleccionar columnas que contienen 'Gasbag' en el nombre
+        
+        
+        columnas_gasbag = df_xlsx_file.columns[df_xlsx_file.columns.str.contains('Gasbag ' + str(gasbag_analized) + ' ')]
+        nombres_columnas = ['Tiempo'] + list(columnas_gasbag)
 
-    # Define las fechas y horas de inicio y fin del período deseado
-    fecha_inicio = '2023-09-05 08:00:00'
-    fecha_fin = '2023-09-05 10:00:00'
+        # Crea un nuevo DataFrame con las columnas seleccionadas
+        nuevo_df = df_xlsx_file[nombres_columnas]
 
-    # Filtra el DataFrame por fecha y hora
-    df_filtrado = nuevo_df_ordenado[(nuevo_df_ordenado['Tiempo'] >= fecha_inicio) & (nuevo_df_ordenado['Tiempo'] <= fecha_fin)]
+        # Asegurate de que la columna 'Tiempo' este en un formato de fecha y hora
+        nuevo_df['Tiempo'] = pd.to_datetime(nuevo_df['Tiempo'])
 
-    # Selecciona la columna 'Tiempo' y obtén las fechas únicas
-    fechas_unicas = nuevo_df_ordenado['Tiempo'].dt.date.unique()
-    
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        selected_date_from = st.selectbox('Date from',  fechas_unicas)
-    with col2:
-        selected_date_to = st.selectbox('Date to',  fechas_unicas)
+        # Ordena el DataFrame por la columna 'Tiempo'
+        nuevo_df_ordenado = nuevo_df.sort_values(by='Tiempo')
 
-    # Filtra las filas correspondientes al día específico
-    filas_dia_from = nuevo_df_ordenado[nuevo_df_ordenado['Tiempo'].dt.date == selected_date_from]
-    filas_dia_to = nuevo_df_ordenado[nuevo_df_ordenado['Tiempo'].dt.date == selected_date_from]
+        # Selecciona la columna 'Tiempo' y obtén las fechas únicas
+        fechas_unicas = nuevo_df_ordenado['Tiempo'].dt.date.unique()
+        
+        
+        with col2:
+            selected_date_from = st.selectbox('Date from',  fechas_unicas)
+        with col3:
+            selected_date_to = st.selectbox('Date to',  fechas_unicas)
 
-    # Extrae las horas de las filas del día específico
-    horas_unicas_from = filas_dia_from['Tiempo'].dt.hour
-    horas_unicas_to = filas_dia_to['Tiempo'].dt.hour
+        # Filtra las filas correspondientes al día específico
+        filas_dia_from = nuevo_df_ordenado[nuevo_df_ordenado['Tiempo'].dt.date == selected_date_from]
+        filas_dia_to = nuevo_df_ordenado[nuevo_df_ordenado['Tiempo'].dt.date == selected_date_from]
 
-    col3, col4 = st.sidebar.columns(2)
-    with col3:
-        selected_hour_from = st.selectbox('Hour from',  horas_unicas_from)
-    with col4:
-        selected_hour_to = st.selectbox('Hour to',  horas_unicas_to)
+        # Extrae las horas de las filas del día específico
+        horas_unicas_from = filas_dia_from['Tiempo'].dt.hour
+        horas_unicas_to = filas_dia_to['Tiempo'].dt.hour
 
-    # FILTRAMOS DATASET CON FECHAS Y HORAS
+        with col4:
+            selected_hour_from = st.selectbox('Hour from',  horas_unicas_from)
+        with col5:
+            selected_hour_to = st.selectbox('Hour to',  horas_unicas_to)
 
-    # Convierte las fechas y horas a objetos datetime
-    fecha_inicio_dt = pd.to_datetime(str(selected_date_from) + ' ' + str(selected_hour_from) + ':00:00')
-    fecha_fin_dt = pd.to_datetime(str(selected_date_to) + ' ' + str(selected_hour_to) + ':00:00')
+        # FILTRAMOS DATASET CON FECHAS Y HORAS
 
-    df_filtrado = nuevo_df_ordenado[(nuevo_df_ordenado['Tiempo'] >= fecha_inicio_dt) & (nuevo_df_ordenado['Tiempo'] <= fecha_fin_dt)]
+        # Convierte las fechas y horas a objetos datetime
+        fecha_inicio_dt = pd.to_datetime(str(selected_date_from) + ' ' + str(selected_hour_from) + ':00:00')
+        fecha_fin_dt = pd.to_datetime(str(selected_date_to) + ' ' + str(selected_hour_to) + ':00:00')
 
-    st.subheader('Filtered data')
-    st.write(df_filtrado)
+        df_filtrado = nuevo_df_ordenado[(nuevo_df_ordenado['Tiempo'] >= fecha_inicio_dt) & (nuevo_df_ordenado['Tiempo'] <= fecha_fin_dt)]
 
-    
+        st.write(df_filtrado)
 
-
-
-
-    # HALLAMOS LAS MEDIAS DE LOS SENSORES
-
-    columnas_filtradas = df_filtrado.drop(columns=df_filtrado.columns[df_filtrado.columns.str.contains('Tiempo|gbag|gcount')])
-    # Calcular la media de cada columna
-    medias_por_columna = columnas_filtradas.mean()
-
-    columnes = st.columns(len(medias_por_columna))
-
-    # Ver las medias
-    i=0
-    for columna, media in medias_por_columna.items():
-        nombre = columna.split('/')[1]
-        with columnes[i]:
-            st.metric(f'{nombre}', round(media,2))
-        i=i+1
+        
 
 
-    
 
 
-    # HALLAMOS VALORES PARA LAS 23:00
+        # HALLAMOS LAS MEDIAS DE LOS SENSORES
 
-    columna_gbag = df_filtrado.columns[df_filtrado.columns.str.contains('gbag')]
-    columna_gcount = df_filtrado.columns[df_filtrado.columns.str.contains('gcount')]
+        columnas_filtradas = df_filtrado.drop(columns=df_filtrado.columns[df_filtrado.columns.str.contains('Tiempo|gbag|gcount')])
+        # Calcular la media de cada columna
+        medias_por_columna = columnas_filtradas.mean()
 
-    # Filtrar las filas donde la hora sea 23
-    df_filtrado_23h = df_filtrado[df_filtrado['Tiempo'].dt.hour == 23]
-    df_filtrado_23h = df_filtrado_23h[['Tiempo'] + list(columna_gbag) + list(columna_gcount)]
+        columnes = st.columns(len(medias_por_columna))
 
-    # Muestra las filas filtradas
-    st.subheader('Data 23h')
-    st.write(df_filtrado_23h)
+        # Ver las medias
+        i=0
+        for columna, media in medias_por_columna.items():
+            nombre = columna.split('/')[1]
+            with columnes[i]:
+                st.metric(f'{nombre}', round(media,2))
+            i=i+1
+
+
+        
+
+
+        # HALLAMOS VALORES PARA LAS 23:00
+
+        columna_gbag = df_filtrado.columns[df_filtrado.columns.str.contains('gbag')]
+        columna_gcount = df_filtrado.columns[df_filtrado.columns.str.contains('gcount')]
+
+        # Filtrar las filas donde la hora sea 23
+        df_filtrado_23h = df_filtrado[df_filtrado['Tiempo'].dt.hour == 23]
+        df_filtrado_23h = df_filtrado_23h[['Tiempo'] + list(columna_gbag) + list(columna_gcount)]
+
+        # Muestra las filas filtradas
+        st.subheader('Data 23h')
+        st.write(df_filtrado_23h)
+
+    with tab3:
+
+        st.write(df_xlsx_file)
