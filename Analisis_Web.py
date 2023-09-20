@@ -6,6 +6,8 @@ import pandas as pd
 from datetime import datetime
 import re
 
+st.set_page_config(layout=‘wide’)
+
 st.sidebar.caption('BETA VERSION 2023')
 
 file_buffer = st.sidebar.file_uploader("Upload a xlsx file")
